@@ -1,8 +1,8 @@
+use socket2::TcpKeepalive;
 use std::fmt;
 use std::io;
 use std::net::{SocketAddr, TcpListener as StdTcpListener};
 use std::time::Duration;
-use socket2::TcpKeepalive;
 
 use tokio::net::TcpListener;
 use tokio::time::Sleep;
@@ -51,18 +51,28 @@ impl TcpKeepaliveConfig {
 
     #[cfg(any(target_os = "openbsd", target_os = "redox", target_os = "solaris"))]
     fn ka_with_interval(ka: TcpKeepalive, _: Duration, _: &mut bool) -> TcpKeepalive {
-        ka  // no-op as keepalive interval is not supported on this platform
+        ka // no-op as keepalive interval is not supported on this platform
     }
 
-    #[cfg(not(any(target_os = "openbsd", target_os = "redox", target_os = "solaris", target_os = "windows")))]
+    #[cfg(not(any(
+        target_os = "openbsd",
+        target_os = "redox",
+        target_os = "solaris",
+        target_os = "windows"
+    )))]
     fn ka_with_retries(ka: TcpKeepalive, retries: u32, dirty: &mut bool) -> TcpKeepalive {
         *dirty = true;
         ka.with_retries(retries)
     }
 
-    #[cfg(any(target_os = "openbsd", target_os = "redox", target_os = "solaris", target_os = "windows"))]
+    #[cfg(any(
+        target_os = "openbsd",
+        target_os = "redox",
+        target_os = "solaris",
+        target_os = "windows"
+    ))]
     fn ka_with_retries(ka: TcpKeepalive, _: u32, _: &mut bool) -> TcpKeepalive {
-        ka  // no-op as keepalive retries is not supported on this platform
+        ka // no-op as keepalive retries is not supported on this platform
     }
 }
 
@@ -309,6 +319,26 @@ mod addr_stream {
             self.inner
         }
 
+        /// Waits for the socket to become readable.
+        #[inline]
+        pub async fn readable(&self) -> io::Result<()> {
+            self.inner.readable().await
+        }
+
+        /// Waits for the socket to become writable.
+        #[inline]
+        pub async fn writable(&self) -> io::Result<()> {
+            self.inner.writable().await
+        }
+
+        /// Receives data on the socket from the remote address to which it is
+        /// connected, without removing that data from the queue. On success,
+        /// returns the number of bytes peeked.
+        #[inline]
+        pub async fn peek(&self, buf: &mut [u8]) -> io::Result<usize> {
+            self.inner.peek(buf).await
+        }
+
         /// Attempt to receive data on the socket, without removing that data
         /// from the queue, registering the current task for wakeup if data is
         /// not yet available.
@@ -382,8 +412,8 @@ mod addr_stream {
 
 #[cfg(test)]
 mod tests {
-    use std::time::Duration;
     use crate::server::tcp::TcpKeepaliveConfig;
+    use std::time::Duration;
 
     #[test]
     fn no_tcp_keepalive_config() {
@@ -413,7 +443,12 @@ mod tests {
         }
     }
 
-    #[cfg(not(any(target_os = "openbsd", target_os = "redox", target_os = "solaris", target_os = "windows")))]
+    #[cfg(not(any(
+        target_os = "openbsd",
+        target_os = "redox",
+        target_os = "solaris",
+        target_os = "windows"
+    )))]
     #[test]
     fn tcp_keepalive_retries_config() {
         let mut kac = TcpKeepaliveConfig::default();
